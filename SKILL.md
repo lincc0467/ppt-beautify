@@ -162,8 +162,17 @@ node ~/.claude/skills/ppt-beautify/scripts/export_deck_pptx.mjs \
 
 附的三套 theme 全部已符合。**自己新增 theme 時要一併遵守**，否則匯出會整批失敗。
 
-字型：PPTX 只保留字型鏈的**第一個名稱**。用 webfont 的話，在沒安裝該字型的機器上會 fallback 破版。
-所以等寬字用系統內建款（Consolas / Menlo），中文落到微軟正黑體。
+**字型（最容易在別台電腦才爆的一條）**：PPTX 只保留字型鏈的**第一個名稱**，其餘 fallback 全部丟失。
+所以字型鏈第一個必須是目標機器一定裝、而且含中文字符的字型：
+
+- 內文 `"Microsoft JhengHei","Noto Sans TC",sans-serif` —— 微軟正黑體隨 Windows 內建；
+  Noto Sans TC 放第二順位，只影響本機 HTML 預覽的細部字形
+- 襯線 `"PMingLiU","Noto Serif TC",serif`
+- **等寬字沒有中文字符**。Consolas 只能用在純數字與拉丁；含中文的標籤掛上 `.mono`，
+  在 HTML 裡會靠 CSS fallback 看起來正常，匯出後卻是整串豆腐字——
+  這種錯在本機完全看不出來。使用者可填的欄位用 `mono()` 自動判斷有沒有中文。
+
+改完字型要重跑一次版面體檢：不同字型的字寬不同，原本剛好不折行的句子可能會折行。
 
 ---
 

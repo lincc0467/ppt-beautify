@@ -11,7 +11,8 @@ const C = {
 };
 
 const br = (s) => String(s ?? '').replace(/\n/g, '<br>');
-const SER = `"Noto Serif TC","PMingLiU",serif`;
+// PPTX 只保留第一個名稱：襯線也得挑 Windows 內建的中文字型，否則換機器就破版
+const SER = `"PMingLiU","Noto Serif TC",serif`;
 
 // 標題寬度：全形算 1、半形算 0.5。用字元數當寬度會把「(量尺 Score@K)」誤判成超長，
 // 讓 lead 白白下移一階、而條列起點沒跟著移，第二行就會壓到第一列。
@@ -25,7 +26,7 @@ export default {
   fonts: `<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+TC:wght@400;500;600;700&display=swap" rel="stylesheet">`,
 
   css: `
-  body { background:${C.bg}; font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif; }
+  body { background:${C.bg}; font-family:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif; }
   .serif { font-family:${SER}; }
   .h2   { font-family:${SER}; font-size:30pt; font-weight:600; line-height:1.34; color:${C.ink}; }
   .lead { font-size:16.5pt; font-weight:300; line-height:1.65; color:${C.body}; }
@@ -162,7 +163,7 @@ export default {
         // 用內容實際折行後的高度判斷，不用 gap 的經驗閾值：k 或 v 一旦折行，
         // 看起來很寬鬆的 gap 也會不夠（分隔線畫在列起點上方 12pt，要一起算進去）。
         const vW0 = p.numbered ? 550 : 598;
-        const nLines = (s, w, fs) => Math.max(1, Math.ceil(tw(s) / Math.max(8, Math.floor(w * 0.94 / fs))));
+        const nLines = (s, w, fs) => Math.max(1, Math.ceil(tw(s) / Math.max(8, Math.floor(w * 0.92 / fs))));
         const stackH = (it) => 17.5 * 1.4 * nLines(it.k, vW0, 17.5) + 5 + 14.5 * 1.55 * nLines(it.v, vW0, 14.5);
         const tight = !twoCol && !p.diagram && p.items.some((it) => stackH(it) > gap - 14);
         const kX = p.numbered ? 346 : 298;
@@ -320,9 +321,14 @@ export default {
 
       case 'case': {
         const gapY = Math.min(96, Math.floor((470 - 186) / Math.max(1, p.blocks.length)));
-        // 四塊以上時每塊只剩約 71pt，k 用 17.5pt 會折行而撞到下一條分隔線
-        const many = p.blocks.length >= 4;
-        const kFs = many ? 15.5 : 17.5, vFs = many ? 13.5 : 14.5;
+        // 字級由「最長那句折不折行」決定，不用區塊數當經驗值——
+        // 每塊只有 gapY 的高度，k 一折行就會撞到下一條分隔線。
+        // 0.92 是給字型差異的餘裕：微軟正黑體比 Noto Sans TC 略寬。
+        const CW = 456;
+        const kTw = Math.max(1, ...p.blocks.map((b) => tw(b.items[0] || '')));
+        const vTw = Math.max(1, ...p.blocks.flatMap((b) => (b.items || []).slice(1).map(tw)));
+        const fit = (avail, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(CW * 0.92 / avail * 2) / 2));
+        const kFs = fit(kTw, 13, 17.5), vFs = fit(vTw, 11.5, 14.5);
         const blocks = p.blocks.map((b, i) => `
   <div style="position:absolute; left:298pt; top:${186 + i * gapY}pt; width:598pt; height:1pt; background:${C.hair};"></div>
   <div style="position:absolute; left:298pt; top:${202 + i * gapY}pt; width:130pt;"><p class="kick" style="color:${C.clay};">${b.label}</p></div>

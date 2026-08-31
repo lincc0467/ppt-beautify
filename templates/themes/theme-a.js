@@ -10,6 +10,10 @@ const C = {
 };
 
 const br = (s) => String(s ?? '').replace(/\n/g, '<br>');
+// 等寬字（Consolas）沒有中文字符，而 PPTX 只保留字型鏈的第一個名稱 ——
+// 一旦內容含中文就不能掛 .mono，否則換一台機器就是整串豆腐字。
+// 使用者填的欄位（封面 kicker、步驟編號）無法預期，這裡自動判斷。
+const mono = (s) => (/[一-鿿　-〿＀-￯]/.test(String(s ?? '')) ? '' : 'mono');
 
 // 標題寬度：全形算 1、半形算 0.5。用字元數當寬度會把「(量尺 Score@K)」誤判成超長，
 // 讓 lead 白白下移一階、而條列起點沒跟著移，第二行就會壓到第一列。
@@ -23,10 +27,12 @@ export default {
   fonts: `<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">`,
 
   css: `
-  body { background:${C.bg}; font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif; }
-  /* 等寬字用系統內建款（Windows 有 Consolas、macOS 有 Menlo）——
-     PPTX 只保留字型鏈的第一個名稱，用 webfont 會在沒裝字型的機器上 fallback 破版 */
-  .mono { font-family:"Consolas","Menlo","Noto Sans TC","Microsoft JhengHei",monospace; font-variant-numeric:tabular-nums; }
+  /* PPTX 只保留字型鏈的「第一個名稱」，其餘 fallback 全部丟失。
+     所以第一個必須是目標機器一定裝、而且含中文字符的字型——微軟正黑體隨 Windows 內建。
+     Noto Sans TC 留在第二順位，只影響本機 HTML 預覽的細部字形。 */
+  body { background:${C.bg}; font-family:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif; }
+  /* 等寬字沒有中文字符：只能用在純數字與拉丁，含中文的標籤一律用 .kick（走內文字型） */
+  .mono { font-family:"Consolas","Menlo",monospace; font-variant-numeric:tabular-nums; }
   h1,h2,h3 { color:${C.ink}; }
   .kick { font-size:11pt; letter-spacing:0.2em; color:${C.dim}; }
   .h2   { font-size:34pt; font-weight:900; line-height:1.24; letter-spacing:0.01em; color:${C.ink}; }
@@ -48,7 +54,7 @@ export default {
       .filter(Boolean).join('　/　');
     const w = Math.round(828 * (ctx.index / ctx.total));
     return `
-  ${kick ? `<div style="position:absolute; left:64pt; top:46pt; width:600pt;"><p class="mono kick">${kick}</p></div>` : ''}
+  ${kick ? `<div style="position:absolute; left:64pt; top:46pt; width:600pt;"><p class="kick">${kick}</p></div>` : ''}
   <div style="position:absolute; left:64pt; top:46pt; width:832pt; text-align:right;"><p class="mono kick">${String(ctx.index).padStart(2, '0')} / ${ctx.total}</p></div>
   <div style="position:absolute; left:64pt; top:70pt; width:832pt; height:1pt; background:${C.line};"></div>
   <div style="position:absolute; left:64pt; top:69pt; width:${w}pt; height:3pt; background:${C.acc};"></div>`;
@@ -134,7 +140,7 @@ export default {
   <div style="position:absolute; left:64pt;  top:${y + 20}pt; width:284pt; height:2pt; background:${C.rule};"></div>
   <div style="position:absolute; left:612pt; top:${y + 20}pt; width:284pt; height:2pt; background:${C.rule};"></div>
   <div style="position:absolute; left:352pt; top:${y + 12}pt; width:256pt;">
-    <p class="mono" style="font-size:11pt; letter-spacing:0.14em; line-height:19pt; color:${C.dim}; text-align:center;">${label}</p>
+    <p style="font-size:11pt; letter-spacing:0.14em; line-height:19pt; color:${C.dim}; text-align:center;">${label}</p>
   </div>`;
   },
 
@@ -170,11 +176,11 @@ export default {
           : '').join('');
 
         const labels = arc.map((a, i) => `
-  <div style="position:absolute; left:${64 + i * segW}pt; top:482pt; width:${segW}pt;"><p class="mono" style="font-size:11pt; letter-spacing:0.14em; color:${a.hero ? C.acc : C.dim};">${a.label}</p></div>`).join('');
+  <div style="position:absolute; left:${64 + i * segW}pt; top:482pt; width:${segW}pt;"><p style="font-size:11pt; letter-spacing:0.14em; color:${a.hero ? C.acc : C.dim};">${a.label}</p></div>`).join('');
 
         return `
-  <div style="position:absolute; left:64pt; top:52pt; width:832pt;"><p class="mono" style="font-size:11pt; font-weight:500; letter-spacing:0.22em; color:${C.acc};">${String(D.kicker || '').replace(/ /g, '&nbsp;')}</p></div>
-  <div style="position:absolute; left:64pt; top:52pt; width:832pt; text-align:right;"><p class="mono" style="font-size:11pt; letter-spacing:0.18em; color:${C.dim};">${[D.occasion, D.meta].filter(Boolean).join('&nbsp;/&nbsp;')}</p></div>
+  <div style="position:absolute; left:64pt; top:52pt; width:832pt;"><p class="${mono(D.kicker)}" style="font-size:11pt; font-weight:500; letter-spacing:0.22em; color:${C.acc};">${String(D.kicker || '').replace(/ /g, '&nbsp;')}</p></div>
+  <div style="position:absolute; left:64pt; top:52pt; width:832pt; text-align:right;"><p style="font-size:11pt; letter-spacing:0.18em; color:${C.dim};">${[D.occasion, D.meta].filter(Boolean).join('&nbsp;/&nbsp;')}</p></div>
   <div style="position:absolute; left:64pt; top:78pt; width:832pt; height:1pt; background:${C.line};"></div>
   <div style="position:absolute; left:64pt; top:150pt; width:800pt;">
     <h1 style="font-size:66pt; font-weight:900; line-height:1.16; letter-spacing:0.01em;">${p.title1}</h1>
@@ -247,15 +253,15 @@ export default {
 
         const logos = p.logos ? `
   <div style="position:absolute; left:64pt; top:428pt; width:832pt; height:1pt; background:${C.rule};"></div>
-  <div style="position:absolute; left:64pt; top:444pt; width:200pt;"><p class="mono kick" style="color:${C.acc};">${p.kicker || ''}</p></div>
+  <div style="position:absolute; left:64pt; top:444pt; width:200pt;"><p class="kick" style="color:${C.acc};">${p.kicker || ''}</p></div>
   ${p.logos.map((g, i) => `
   ${g.src ? `<div style="position:absolute; left:${280 + i * 210}pt; top:440pt; width:200pt; height:30pt;"><img src="../assets/${g.src}" style="width:19pt; height:19pt; opacity:0.85;" alt=""></div>` : ''}
-  <div style="position:absolute; left:${280 + i * 210 + (g.src ? 27 : 0)}pt; top:${g.src ? 444 : 440}pt; width:180pt;"><p style="font-size:13pt; color:${C.mut};">${g.text ? `<span class="mono" style="color:${C.ink};">${g.text}</span>　` : ''}${g.name}</p></div>`).join('')}` : '';
+  <div style="position:absolute; left:${280 + i * 210 + (g.src ? 27 : 0)}pt; top:${g.src ? 444 : 440}pt; width:180pt;"><p style="font-size:13pt; color:${C.mut};">${g.text ? `<span style="color:${C.ink};">${g.text}</span>　` : ''}${g.name}</p></div>`).join('')}` : '';
 
         const footer = (p.footer && !p.logos) ? `
   <div style="position:absolute; left:64pt; top:432pt; width:832pt; height:1pt; background:${C.acc};"></div>
   <div style="position:absolute; left:64pt; top:448pt; width:832pt;" data-pptx-merge="true">
-    ${p.kicker ? `<p class="mono kick" style="color:${C.acc};">${p.kicker}</p>` : ''}
+    ${p.kicker ? `<p class="kick" style="color:${C.acc};">${p.kicker}</p>` : ''}
     <p style="font-size:17pt; font-weight:500; line-height:1.5; color:${C.ink}; margin-top:${p.kicker ? 6 : 0}pt;">${p.footer}</p>
   </div>` : '';
 
@@ -313,7 +319,7 @@ export default {
         const cols = p.steps.map((s, i) => `
   <div style="position:absolute; left:${64 + i * (w + gap)}pt; top:250pt; width:${w}pt; height:4pt; background:${C.acc};"></div>
   <div style="position:absolute; left:${64 + i * (w + gap)}pt; top:268pt; width:${w}pt;" data-pptx-merge="true">
-    <p class="mono" style="font-size:28pt; font-weight:500; line-height:1; color:${C.acc};">${s.no}</p>
+    <p class="${mono(s.no)}" style="font-size:28pt; font-weight:500; line-height:1; color:${C.acc};">${s.no}</p>
     <p style="font-size:18pt; font-weight:700; line-height:1.45; color:${C.ink}; margin-top:14pt;">${br(s.name)}</p>
   </div>`).join('');
         return t.head(p, ctx) + t.title(p) + cols + t.loop(ctx, p, 400) + t.axis(ctx);
@@ -372,7 +378,7 @@ export default {
   </div>`).join('')}`;
         const band = p.sources ? `
   <div style="position:absolute; left:64pt; top:474pt; width:832pt; height:1pt; background:${C.line};"></div>
-  <div style="position:absolute; left:64pt; top:486pt; width:400pt;"><p class="mono kick">${p.sourcesLabel || ''}</p></div>
+  <div style="position:absolute; left:64pt; top:486pt; width:400pt;"><p class="kick">${p.sourcesLabel || ''}</p></div>
   ${p.sources.map((s, i) => `
   ${s.src ? `<div style="position:absolute; left:${500 + i * 120}pt; top:486pt; width:19pt; height:19pt;"><img src="../assets/${s.src}" style="width:16pt; height:16pt; opacity:0.8;" alt=""></div>` : ''}
   <div style="position:absolute; left:${500 + i * 120 + (s.src ? 24 : 0)}pt; top:488pt; width:96pt;"><p style="font-size:12pt; color:${C.dim};">${s.name}</p></div>`).join('')}` : '';
@@ -394,11 +400,11 @@ export default {
         return t.head(p, ctx) + t.title(p) + `
   <div style="position:absolute; left:64pt; top:196pt; width:832pt; height:3pt; background:${C.acc};"></div>
   <div style="position:absolute; left:64pt; top:214pt; width:832pt;" data-pptx-merge="true">
-    ${p.keyLabel ? `<p class="mono kick" style="color:${C.acc};">${p.keyLabel}</p>` : ''}
+    ${p.keyLabel ? `<p class="kick" style="color:${C.acc};">${p.keyLabel}</p>` : ''}
     <p style="font-size:30pt; font-weight:900; line-height:1.35; color:${C.ink}; margin-top:12pt;">${p.key}</p>
   </div>
   <div style="position:absolute; left:64pt; top:${an > 4 ? 314 : 330}pt; width:832pt; height:1pt; background:${C.line};"></div>
-  ${p.actionLabel ? `<div style="position:absolute; left:64pt; top:${an > 4 ? 326 : 344}pt; width:300pt;"><p class="mono kick">${p.actionLabel}</p></div>` : ''}` + acts + t.axis(ctx);
+  ${p.actionLabel ? `<div style="position:absolute; left:64pt; top:${an > 4 ? 326 : 344}pt; width:300pt;"><p class="kick">${p.actionLabel}</p></div>` : ''}` + acts + t.axis(ctx);
       }
 
       // ── table：資料矩陣。cols 給欄頭與相對寬度，rows 是二維陣列 ──
@@ -451,7 +457,7 @@ export default {
 
         const note = p.note ? `
   <div style="position:absolute; left:${X0}pt; top:466pt; width:${TOTAL}pt; height:1pt; background:${C.line};"></div>
-  ${p.noteLabel ? `<div style="position:absolute; left:${X0}pt; top:476pt; width:${TOTAL}pt;"><p class="mono kick" style="color:${C.acc};">${p.noteLabel}</p></div>` : ''}
+  ${p.noteLabel ? `<div style="position:absolute; left:${X0}pt; top:476pt; width:${TOTAL}pt;"><p class="kick" style="color:${C.acc};">${p.noteLabel}</p></div>` : ''}
   <div style="position:absolute; left:${X0}pt; top:${p.noteLabel ? 494 : 480}pt; width:${TOTAL}pt;"><p style="font-size:10.5pt; font-weight:300; line-height:1.35; color:${C.mut};">${p.note}</p></div>` : '';
 
         return t.head(p, ctx) + t.title(p) + head + body + (note || t.axis(ctx));

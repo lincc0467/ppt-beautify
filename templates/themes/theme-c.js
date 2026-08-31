@@ -24,7 +24,7 @@ export default {
   fonts: `<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">`,
 
   css: `
-  body { background:${C.bg}; font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif; }
+  body { background:${C.bg}; font-family:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif; }
   .cap  { font-size:10pt; font-weight:500; letter-spacing:0.2em; color:${C.mut}; }
   .h2   { font-size:28pt; font-weight:700; line-height:1.35; color:${C.ink}; }
   .lead { font-size:16.5pt; font-weight:300; line-height:1.6; color:${C.body}; }
