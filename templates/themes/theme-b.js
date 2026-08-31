@@ -389,7 +389,9 @@ export default {
         const top = p.lead ? 192 : 152;
         const bot = p.note ? 458 : 492;
         const headH = 22;
-        const rowH = Math.min(46, (bot - top - headH) / Math.max(1, rows.length));
+        // 上限 60 而非 46：三、四列的表格若卡在 46，版心會空掉一大片；
+        // 十列以上的表格本來就遠低於上限，不受影響
+        const rowH = Math.min(60, (bot - top - headH) / Math.max(1, rows.length));
         const fs = +Math.max(9.5, Math.min(13, rowH * 0.46)).toFixed(1);
 
         const shell = `
