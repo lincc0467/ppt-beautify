@@ -56,7 +56,10 @@ export default {
   head(p, ctx) {
     const ch = ctx.chapterOf(p);
     const c = this.color(p, ctx);
-    const kick = [ch ? `${ch.no} ${ch.name}` : '', p.stepNo ? `STEP ${p.stepNo}` : ''].filter(Boolean).join('　·　');
+    // p.scene：場景標記，用章節色接在頁首後面，讓聽眾隨時知道現在講第幾個場景
+    const scene = p.scene ? `<span style="color:${c}; font-weight:700;">${p.scene}</span>` : '';
+    const kick = [ch ? `${ch.no} ${ch.name}` : '', p.stepNo ? `STEP ${p.stepNo}` : '', scene]
+      .filter(Boolean).join('　·　');
     return `
   <div style="position:absolute; left:0; top:0; width:40pt; height:540pt; background:${c};"></div>
   ${kick ? `<div style="position:absolute; left:88pt; top:52pt; width:560pt;"><p class="cap">${kick}</p></div>` : ''}
@@ -180,6 +183,11 @@ export default {
         const rowNeed = 46, listBottom = hasBand ? 420 : 488;
         const gap = p.diagram ? 46
           : Math.min(n >= 5 ? 52 : 64, Math.floor((listBottom - rowNeed - top) / Math.max(1, n - 1)));
+        // 行距擠不下「k 疊 v」時改成左右並排——否則 v 會壓到下一列的 k
+        const tight = !twoCol && !p.diagram && gap < 54;
+        const kX = p.numbered ? 140 : 108;
+        const kW = Math.min(p.wideKey || 200, 250);
+        const vX = kX + kW + 16, vW = 916 - vX;
         // diagramOnly：圖已完整承載這些條目，不再重列
         const shown = p.diagramOnly ? [] : p.items;
 
@@ -198,10 +206,13 @@ export default {
   <div style="position:absolute; left:88pt; top:${top + i * gap}pt; width:${p.numbered ? 44 : 4}pt; ${p.numbered ? '' : `height:${gap - 18}pt; background:${c};`}">
     ${p.numbered ? `<p style="font-size:16pt; font-weight:700; line-height:1; color:${c}; font-variant-numeric:tabular-nums;">${String(start + i).padStart(2, '0')}</p>` : ''}
   </div>
-  <div style="position:absolute; left:${p.numbered ? 140 : 108}pt; top:${top + i * gap - 3}pt; width:${p.numbered ? 776 : 808}pt;" data-pptx-merge="true">
+  ${tight ? `
+  <div style="position:absolute; left:${kX}pt; top:${top + i * gap - 3}pt; width:${kW}pt;"><p class="k" style="font-size:13.5pt;">${it.k}</p></div>
+  <div style="position:absolute; left:${vX}pt; top:${top + i * gap - 1}pt; width:${vW}pt;"><p class="v" style="font-size:12.5pt;">${it.v}</p></div>` : `
+  <div style="position:absolute; left:${kX}pt; top:${top + i * gap - 3}pt; width:${p.numbered ? 776 : 808}pt;" data-pptx-merge="true">
     <p class="k">${it.k}</p>
     <p class="v" style="margin-top:5pt;">${it.v}</p>
-  </div>`;
+  </div>`}`;
         }).join('');
 
         const rowsH = (twoCol ? Math.ceil(shown.length / 2) : shown.length) * gap;
@@ -244,14 +255,18 @@ export default {
       }
 
       case 'split': {
+        // lead 佔兩行時整組欄位下移，否則導言第二行會壓到欄標題
+        // （lead 欄寬 640pt、16.5pt，理論一行 38 字；取 35 留餘裕）
+        const dy = p.lead && tw(p.lead) > 35 ? 26 : 0;
+        const gy = dy ? 36 : 40;
         const col = (d, x, on) => `
-  <div style="position:absolute; left:${x}pt; top:190pt; width:396pt; height:5pt; background:${on ? c : '#B8B8B8'};"></div>
-  <div style="position:absolute; left:${x}pt; top:206pt; width:396pt;"><p style="font-size:18pt; font-weight:700; color:${on ? c : C.mut};">${d.label}</p></div>
+  <div style="position:absolute; left:${x}pt; top:${190 + dy}pt; width:396pt; height:5pt; background:${on ? c : '#B8B8B8'};"></div>
+  <div style="position:absolute; left:${x}pt; top:${206 + dy}pt; width:396pt;"><p style="font-size:18pt; font-weight:700; color:${on ? c : C.mut};">${d.label}</p></div>
   ${d.items.map((s, i) => `
-  <div style="position:absolute; left:${x}pt; top:${248 + i * 40}pt; width:396pt;">
+  <div style="position:absolute; left:${x}pt; top:${248 + dy + i * gy}pt; width:396pt;">
     <p style="font-size:15pt; font-weight:${on ? 500 : 400}; line-height:1.4; color:${on ? C.ink : C.mut};">${s}</p>
   </div>
-  <div style="position:absolute; left:${x}pt; top:${248 + i * 40 + 28}pt; width:396pt; height:1pt; background:${C.line};"></div>`).join('')}`;
+  <div style="position:absolute; left:${x}pt; top:${248 + dy + i * gy + 28}pt; width:396pt; height:1pt; background:${C.line};"></div>`).join('')}`;
         return t.head(p, ctx) + t.title(p) + col(p.left, 88, false) + col(p.right, 520, true);
       }
 
@@ -347,9 +362,13 @@ export default {
       }
 
       case 'closing': {
+        // 行距由可用高度反推：PPTX 要求文字框離底邊 ≥0.5"，5 條就得收緊
+        const an = (p.actions || []).length;
+        const aY = an > 4 ? 348 : 362;
+        const aG = Math.min(34, Math.floor((490 - aY - 22) / Math.max(1, an - 1)));
         const acts = (p.actions || []).map((s, i) => `
-  <div style="position:absolute; left:88pt; top:${362 + i * 34}pt; width:40pt;"><p style="font-size:14pt; font-weight:700; color:${c}; font-variant-numeric:tabular-nums;">${String(i + 1).padStart(2, '0')}</p></div>
-  <div style="position:absolute; left:136pt; top:${360 + i * 34}pt; width:780pt;"><p style="font-size:15.5pt; font-weight:400; line-height:1.45; color:${C.body};">${s}</p></div>`).join('');
+  <div style="position:absolute; left:88pt; top:${aY + i * aG}pt; width:40pt;"><p style="font-size:14pt; font-weight:700; color:${c}; font-variant-numeric:tabular-nums;">${String(i + 1).padStart(2, '0')}</p></div>
+  <div style="position:absolute; left:136pt; top:${aY - 2 + i * aG}pt; width:780pt;"><p style="font-size:${an > 4 ? 14 : 15.5}pt; font-weight:400; line-height:1.45; color:${C.body};">${s}</p></div>`).join('');
         return t.head(p, ctx) + t.title(p) + `
   <div style="position:absolute; left:88pt; top:186pt; width:828pt; height:5pt; background:${c};"></div>
   <div style="position:absolute; left:88pt; top:206pt; width:828pt;" data-pptx-merge="true">
@@ -358,6 +377,55 @@ export default {
   </div>
   <div style="position:absolute; left:88pt; top:322pt; width:828pt; height:1pt; background:${C.line};"></div>
   ${p.actionLabel ? `<div style="position:absolute; left:88pt; top:336pt; width:300pt;"><p class="key" style="color:${C.mut};">${p.actionLabel}</p></div>` : ''}` + acts;
+      }
+
+      // ── table：資料矩陣。C 版紀律是色彩即編碼，所以分級直接畫成綠／琥珀／紅熱圖 ──
+      case 'table': {
+        const cols = p.cols || [], rows = p.rows || [], on = p.on || [];
+        const X0 = 88, TOTAL = 828;
+        const GR = { A: '#4A7F37', B: '#B5721E', C: '#9E3C4C' };
+        const sum = cols.reduce((a, cc) => a + (cc.w || 1), 0);
+        const ws = cols.map((cc) => (cc.w || 1) / sum * TOTAL);
+        const xs = []; let acc = X0;
+        for (const w of ws) { xs.push(acc); acc += w; }
+        const top = p.lead ? t.leadTop(p) + 50 : 152;
+        const bot = p.note ? 458 : 492;
+        const headH = 22;
+        const rowH = Math.min(46, (bot - top - headH) / Math.max(1, rows.length));
+        const fs = +Math.max(9.5, Math.min(13, rowH * 0.46)).toFixed(1);
+
+        const head = cols.map((cc, i) => `
+  <div style="position:absolute; left:${xs[i].toFixed(1)}pt; top:${top}pt; width:${(ws[i] - 10).toFixed(1)}pt;"><p style="font-size:9.5pt; font-weight:500; letter-spacing:0.05em; line-height:1.3; color:${C.mut}; text-align:${cc.align || 'left'};">${cc.k}</p></div>`).join('') + `
+  <div style="position:absolute; left:${X0}pt; top:${top + headH - 4}pt; width:${TOTAL}pt; height:2pt; background:${C.ink};"></div>`;
+
+        const body = rows.map((r, ri) => {
+          const y = top + headH + ri * rowH;
+          const ty = (y + (rowH - fs * 1.4) / 2).toFixed(1);
+          const band = p.grade
+            ? (ri ? `<div style="position:absolute; left:${X0}pt; top:${y.toFixed(1)}pt; width:${TOTAL}pt; height:1pt; background:${C.line};"></div>` : '')
+            : (ri % 2 ? `<div style="position:absolute; left:${X0}pt; top:${y.toFixed(1)}pt; width:${TOTAL}pt; height:${rowH.toFixed(1)}pt; background:${C.soft};"></div>` : '');
+          const cells = r.map((v, ci) => {
+            const cw = ws[ci], cx = xs[ci], al = cols[ci].align || 'left';
+            if (p.grade && /^[ABC]$/.test(v)) {
+              const cwc = Math.min(cw - 14, 54), cxc = cx + (cw - 10 - cwc) / 2;
+              return `
+  <div style="position:absolute; left:${cxc.toFixed(1)}pt; top:${(y + 2.5).toFixed(1)}pt; width:${cwc.toFixed(1)}pt; height:${(rowH - 5).toFixed(1)}pt; background:${GR[v]};"></div>
+  <div style="position:absolute; left:${cxc.toFixed(1)}pt; top:${ty}pt; width:${cwc.toFixed(1)}pt;"><p style="font-size:${fs}pt; font-weight:700; line-height:1.4; color:#FFFFFF; text-align:center;">${v}</p></div>`;
+            }
+            const hot = on.includes(v);
+            const bold = ci === 0 || ci === p.emph || hot;
+            return `
+  <div style="position:absolute; left:${cx.toFixed(1)}pt; top:${ty}pt; width:${(cw - 10).toFixed(1)}pt;"><p style="font-size:${fs}pt; font-weight:${bold ? 700 : 400}; line-height:1.4; color:${hot ? c : (ci === 0 ? C.ink : C.body)}; text-align:${al};">${v}</p></div>`;
+          }).join('');
+          return band + cells;
+        }).join('');
+
+        const note = p.note ? `
+  <div style="position:absolute; left:${X0}pt; top:466pt; width:${TOTAL}pt; height:1pt; background:${C.line};"></div>
+  ${p.noteLabel ? `<div style="position:absolute; left:${X0}pt; top:476pt; width:${TOTAL}pt;"><p class="key" style="color:${c};">${p.noteLabel}</p></div>` : ''}
+  <div style="position:absolute; left:${X0}pt; top:${p.noteLabel ? 494 : 480}pt; width:${TOTAL}pt;"><p style="font-size:10.5pt; font-weight:300; line-height:1.35; color:${C.body};">${p.note}</p></div>` : '';
+
+        return t.head(p, ctx) + t.title(p) + head + body + note;
       }
     }
     return '';

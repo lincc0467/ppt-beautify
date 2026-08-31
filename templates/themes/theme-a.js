@@ -42,7 +42,9 @@ export default {
   // ── 共用：頁首（章節標 + 進度條）──
   head(p, ctx) {
     const ch = ctx.chapterOf(p);
-    const kick = [ch ? `${ch.no} ${ch.name}` : '', p.stepNo ? `STEP ${p.stepNo}` : '']
+    // p.scene：場景標記，橘色接在章節後面，讓聽眾隨時知道現在講第幾個場景
+    const scene = p.scene ? `<span style="color:${C.acc}; font-weight:700; letter-spacing:0.08em;">${p.scene}</span>` : '';
+    const kick = [ch ? `${ch.no} ${ch.name}` : '', p.stepNo ? `STEP ${p.stepNo}` : '', scene]
       .filter(Boolean).join('　/　');
     const w = Math.round(828 * (ctx.index / ctx.total));
     return `
@@ -198,7 +200,8 @@ export default {
         const areaBot = p.diagramOnly ? areaTop - 14
           : (p.diagram ? areaTop + rowsCount * rowH : (hasBand ? 414 : 488));
         // diagramOnly 若同時有頁尾帶，圖高要讓出帶子的位置，否則會蓋上去
-        const DIA_H = p.diagramOnly ? (hasBand ? 196 : 248) : (hasBand ? 400 : 486) - (areaBot + 14);
+        // 圖高一律由剩餘空間反推，不寫死常數——否則加了數字帶（statH）之後圖會壓到頁尾帶
+        const DIA_H = (hasBand ? 414 : 486) - (areaBot + 16);
         const start = p.startNo || 1;
         const numW = p.numbered ? 60 : 0;
         const kX = 64 + numW;
@@ -222,8 +225,10 @@ export default {
   </div>`;
           }
           const y = Math.round(areaTop + i * rowH);
+          // 分隔線置中在列與列的間隙裡。寫死 15pt 的話，列數一多（行距 < 40pt）就會切進上一列的標題
+          const sepUp = Math.min(15, Math.max(4, (rowH - kSize * 1.4) / 2)).toFixed(1);
           return `
-  <div style="position:absolute; left:64pt; top:${y - (p.diagram ? 9 : 15)}pt; width:832pt; height:1pt; background:${C.line};"></div>
+  <div style="position:absolute; left:64pt; top:${y - sepUp}pt; width:832pt; height:1pt; background:${C.line};"></div>
   ${p.numbered ? `<div style="position:absolute; left:64pt; top:${y + 2}pt; width:52pt;"><p class="mono no" style="font-size:${p.diagram ? 14 : 16}pt;">${String(start + i).padStart(2, '0')}</p></div>` : ''}
   <div style="position:absolute; left:${kX}pt; top:${y}pt; width:${kW}pt;"><p class="k" style="font-size:${kSize}pt;">${it.k}</p></div>
   <div style="position:absolute; left:${vX}pt; top:${y + 2}pt; width:${vW}pt;"><p class="v" style="font-size:${vSize}pt;">${it.v}</p></div>`;
@@ -281,8 +286,8 @@ export default {
         // A 版的 flow 以一張圖解當主角；沒有圖解時降級成橫向步驟條
         const notes = (p.notes || []).map((nt, i) => `
   <div style="position:absolute; left:${64 + i * 420}pt; top:424pt; width:400pt;" data-pptx-merge="true">
-    <p class="mono kick" style="color:${C.acc};">${nt.k}</p>
-    <p style="font-size:16pt; font-weight:300; line-height:1.5; color:${C.mut}; margin-top:8pt;">${nt.v}</p>
+    <p style="font-size:15pt; font-weight:700; letter-spacing:0.03em; color:${C.acc};">${nt.k}</p>
+    <p style="font-size:15pt; font-weight:300; line-height:1.5; color:${C.mut}; margin-top:6pt;">${nt.v}</p>
   </div>`).join('');
         const body = p.diagram
           ? t.img(ctx, p.diagram, 120, 208, 720)
@@ -335,7 +340,7 @@ export default {
           const cols = p.blocks.map((b, i) => `
   <div style="position:absolute; left:${64 + i * 432}pt; top:392pt; width:400pt; height:1pt; background:${C.rule};"></div>
   <div style="position:absolute; left:${64 + i * 432}pt; top:406pt; width:400pt;" data-pptx-merge="true">
-    <p class="mono kick" style="color:${C.acc};">${b.label}</p>
+    <p style="font-size:15pt; font-weight:700; letter-spacing:0.03em; color:${C.acc};">${b.label}</p>
     ${b.items.map((s) => `<p style="font-size:15pt; font-weight:300; line-height:1.5; color:${C.mut}; margin-top:7pt;">${s}</p>`).join('')}
   </div>`).join('');
           return t.head(p, ctx) + t.title(p) + t.img(ctx, p.diagram, 140, 168, 680) + cols + t.axis(ctx);
@@ -343,7 +348,7 @@ export default {
         const gapY = Math.min(92, Math.floor((488 - 222) / Math.max(1, p.blocks.length)));
         const blocks = p.blocks.map((b, i) => `
   <div style="position:absolute; left:64pt; top:${222 + i * gapY}pt; width:832pt; height:1pt; background:${C.line};"></div>
-  <div style="position:absolute; left:64pt; top:${238 + i * gapY}pt; width:220pt;"><p class="mono kick" style="color:${C.acc};">${b.label}</p></div>
+  <div style="position:absolute; left:64pt; top:${236 + i * gapY}pt; width:224pt;"><p style="font-size:15.5pt; font-weight:700; letter-spacing:0.03em; line-height:1.4; color:${C.acc};">${b.label}</p></div>
   <div style="position:absolute; left:300pt; top:${232 + i * gapY}pt; width:596pt;" data-pptx-merge="true">
     ${b.items.map((s, j) => `<p style="font-size:16.5pt; font-weight:${j === 0 ? 500 : 300}; line-height:1.55; color:${j === 0 ? C.ink : C.mut}; margin-top:${j ? 6 : 0}pt;">${s}</p>`).join('')}
   </div>`).join('');
@@ -351,15 +356,18 @@ export default {
       }
 
       case 'turn': {
+        // lead 佔兩行時整組欄位往下讓，否則分隔線會壓到第二行（640pt / 15pt ≈ 42 全形字一行）
+        const dy = tw(p.lead) > 42 ? 22 : 0;
+        const gy = dy ? 30 : 34;
         const side = (d, x, on) => `
-  <div style="position:absolute; left:${x}pt; top:196pt; width:396pt; height:3pt; background:${on ? C.acc : C.off};"></div>
-  <div style="position:absolute; left:${x}pt; top:210pt; width:396pt;"><p style="font-size:17pt; font-weight:700; color:${on ? C.acc : C.dim};">${d.label}</p></div>
-  <div style="position:absolute; left:${x}pt; top:238pt; width:396pt;" data-pptx-merge="true">
+  <div style="position:absolute; left:${x}pt; top:${196 + dy}pt; width:396pt; height:3pt; background:${on ? C.acc : C.off};"></div>
+  <div style="position:absolute; left:${x}pt; top:${210 + dy}pt; width:396pt;"><p style="font-size:17pt; font-weight:700; color:${on ? C.acc : C.dim};">${d.label}</p></div>
+  <div style="position:absolute; left:${x}pt; top:${238 + dy}pt; width:396pt;" data-pptx-merge="true">
     <p style="font-size:70pt; font-weight:900; line-height:1; color:${on ? C.acc : C.off}; font-variant-numeric:tabular-nums;">${d.score}${d.unit ? `<span style="font-size:24pt; font-weight:400;">&nbsp;${d.unit}</span>` : ''}</p>
     ${d.note ? `<p class="lbl" style="margin-top:10pt;">${d.note}</p>` : ''}
   </div>
   ${(d.items || []).map((s, i) => `
-  <div style="position:absolute; left:${x}pt; top:${372 + i * 34}pt; width:396pt;">
+  <div style="position:absolute; left:${x}pt; top:${372 + dy + i * gy}pt; width:396pt;">
     <p style="font-size:15pt; font-weight:300; line-height:1.4; color:${on ? C.ink : C.mut};">${s}</p>
   </div>`).join('')}`;
         const band = p.sources ? `
@@ -370,23 +378,81 @@ export default {
   <div style="position:absolute; left:${500 + i * 120 + (s.src ? 24 : 0)}pt; top:488pt; width:96pt;"><p style="font-size:12pt; color:${C.dim};">${s.name}</p></div>`).join('')}` : '';
         return t.head(p, ctx) + t.head0(p) +
           side(p.before, 64, false) + side(p.after, 500, true) + `
-  <div style="position:absolute; left:470pt; top:250pt; width:20pt; height:2pt; background:${C.rule};"></div>` +
+  <div style="position:absolute; left:470pt; top:${250 + dy}pt; width:20pt; height:2pt; background:${C.rule};"></div>` +
           // 有來源帶時底部已被佔用，沒有的話補上敘事軸，維持每頁一致
           (band || t.axis(ctx));
       }
 
       case 'closing': {
+        // 行距由可用高度反推：PPTX 要求文字框離底邊 ≥0.5"，5 條就得收緊
+        const an = (p.actions || []).length;
+        const aY = an > 4 ? 352 : 370;
+        const aG = Math.min(34, Math.floor((492 - aY - 24) / Math.max(1, an - 1)));
         const acts = (p.actions || []).map((s, i) => `
-  <div style="position:absolute; left:64pt; top:${370 + i * 34}pt; width:52pt;"><p class="mono no">${String(i + 1).padStart(2, '0')}</p></div>
-  <div style="position:absolute; left:116pt; top:${368 + i * 34}pt; width:780pt;"><p style="font-size:17pt; font-weight:300; line-height:1.4; color:${C.mut};">${s}</p></div>`).join('');
+  <div style="position:absolute; left:64pt; top:${aY + i * aG}pt; width:52pt;"><p class="mono no">${String(i + 1).padStart(2, '0')}</p></div>
+  <div style="position:absolute; left:116pt; top:${aY - 2 + i * aG}pt; width:780pt;"><p style="font-size:${an > 4 ? 15.5 : 17}pt; font-weight:300; line-height:1.4; color:${C.mut};">${s}</p></div>`).join('');
         return t.head(p, ctx) + t.title(p) + `
   <div style="position:absolute; left:64pt; top:196pt; width:832pt; height:3pt; background:${C.acc};"></div>
   <div style="position:absolute; left:64pt; top:214pt; width:832pt;" data-pptx-merge="true">
     ${p.keyLabel ? `<p class="mono kick" style="color:${C.acc};">${p.keyLabel}</p>` : ''}
     <p style="font-size:30pt; font-weight:900; line-height:1.35; color:${C.ink}; margin-top:12pt;">${p.key}</p>
   </div>
-  <div style="position:absolute; left:64pt; top:330pt; width:832pt; height:1pt; background:${C.line};"></div>
-  ${p.actionLabel ? `<div style="position:absolute; left:64pt; top:344pt; width:300pt;"><p class="mono kick">${p.actionLabel}</p></div>` : ''}` + acts + t.axis(ctx);
+  <div style="position:absolute; left:64pt; top:${an > 4 ? 314 : 330}pt; width:832pt; height:1pt; background:${C.line};"></div>
+  ${p.actionLabel ? `<div style="position:absolute; left:64pt; top:${an > 4 ? 326 : 344}pt; width:300pt;"><p class="mono kick">${p.actionLabel}</p></div>` : ''}` + acts + t.axis(ctx);
+      }
+
+      // ── table：資料矩陣。cols 給欄頭與相對寬度，rows 是二維陣列 ──
+      // grade:true 時 A/B/C 儲存格畫成色塊；emph 指定要加粗的欄；on 列出要上強調色的值
+      case 'table': {
+        const cols = p.cols || [], rows = p.rows || [], on = p.on || [];
+        const X0 = 64, TOTAL = 832;
+        const sum = cols.reduce((a, c) => a + (c.w || 1), 0);
+        const ws = cols.map((c) => (c.w || 1) / sum * TOTAL);
+        const xs = []; let acc = X0;
+        for (const w of ws) { xs.push(acc); acc += w; }
+        // 行距由可用高度反推；13 列時約 10.5pt，3 列時封頂在 13pt，不寫死
+        // 起點要看 lead 實際佔幾行，不能只看標題寬度——lead 換行時表頭會被壓到
+        // （lead 欄寬 640pt、17pt，理論一行 37 字；取 34 留餘裕——換行點是詞不是字，實測會提前折行）
+        const top = p.lead ? t.leadTop(p) + 26 * Math.ceil(tw(p.lead) / 34) + 26 : 148;
+        const bot = p.note ? 458 : 492;
+        const headH = 22;
+        const rowH = Math.min(46, (bot - top - headH) / Math.max(1, rows.length));
+        const fs = +Math.max(9.5, Math.min(13, rowH * 0.46)).toFixed(1);
+
+        const head = cols.map((c, i) => `
+  <div style="position:absolute; left:${xs[i].toFixed(1)}pt; top:${top}pt; width:${(ws[i] - 10).toFixed(1)}pt;"><p style="font-size:9.5pt; font-weight:500; letter-spacing:0.05em; line-height:1.3; color:${C.dim}; text-align:${c.align || 'left'};">${c.k}</p></div>`).join('') + `
+  <div style="position:absolute; left:${X0}pt; top:${top + headH - 4}pt; width:${TOTAL}pt; height:1.5pt; background:${C.rule};"></div>`;
+
+        const body = rows.map((r, ri) => {
+          const y = top + headH + ri * rowH;
+          const ty = (y + (rowH - fs * 1.4) / 2).toFixed(1);
+          const band = p.grade
+            ? (ri ? `<div style="position:absolute; left:${X0}pt; top:${y.toFixed(1)}pt; width:${TOTAL}pt; height:1pt; background:${C.line};"></div>` : '')
+            : (ri % 2 ? `<div style="position:absolute; left:${X0}pt; top:${y.toFixed(1)}pt; width:${TOTAL}pt; height:${rowH.toFixed(1)}pt; background:#E7E8E5;"></div>` : '');
+          const cells = r.map((v, ci) => {
+            const cw = ws[ci], cx = xs[ci], al = cols[ci].align || 'left';
+            if (p.grade && /^[ABC]$/.test(v)) {
+              const bg = v === 'A' ? C.acc : (v === 'B' ? '#DDDFDB' : '');
+              const fg = v === 'A' ? '#FFFFFF' : (v === 'B' ? C.ink : C.off);
+              const cwc = Math.min(cw - 14, 52), cxc = cx + (cw - 10 - cwc) / 2;
+              return (bg ? `
+  <div style="position:absolute; left:${cxc.toFixed(1)}pt; top:${(y + 2.5).toFixed(1)}pt; width:${cwc.toFixed(1)}pt; height:${(rowH - 5).toFixed(1)}pt; background:${bg};"></div>` : '') + `
+  <div style="position:absolute; left:${cxc.toFixed(1)}pt; top:${ty}pt; width:${cwc.toFixed(1)}pt;"><p class="mono" style="font-size:${fs}pt; font-weight:700; line-height:1.4; color:${fg}; text-align:center;">${v}</p></div>`;
+            }
+            const hot = on.includes(v);
+            const bold = ci === 0 || ci === p.emph || hot;
+            return `
+  <div style="position:absolute; left:${cx.toFixed(1)}pt; top:${ci === 0 ? (y + (rowH - (fs + 1) * 1.4) / 2).toFixed(1) : ty}pt; width:${(cw - 10).toFixed(1)}pt;"><p style="font-size:${ci === 0 ? fs + 1 : fs}pt; font-weight:${bold ? 700 : 300}; line-height:1.4; color:${hot ? C.acc : (ci === 0 ? C.ink : C.mut)}; text-align:${al};">${v}</p></div>`;
+          }).join('');
+          return band + cells;
+        }).join('');
+
+        const note = p.note ? `
+  <div style="position:absolute; left:${X0}pt; top:466pt; width:${TOTAL}pt; height:1pt; background:${C.line};"></div>
+  ${p.noteLabel ? `<div style="position:absolute; left:${X0}pt; top:476pt; width:${TOTAL}pt;"><p class="mono kick" style="color:${C.acc};">${p.noteLabel}</p></div>` : ''}
+  <div style="position:absolute; left:${X0}pt; top:${p.noteLabel ? 494 : 480}pt; width:${TOTAL}pt;"><p style="font-size:10.5pt; font-weight:300; line-height:1.35; color:${C.mut};">${p.note}</p></div>` : '';
+
+        return t.head(p, ctx) + t.title(p) + head + body + (note || t.axis(ctx));
       }
     }
     return '';

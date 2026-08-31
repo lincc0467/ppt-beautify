@@ -71,6 +71,7 @@ node $SK/scripts/export_deck_pptx.mjs --slides decks/A/slides --out 成品.pptx
 
 **版面不寫死行距** —— 行距由可用高度反推，並扣掉頁尾帶與頁碼軸。
 有圖的頁面條列自動改雙欄，把高度讓給圖。這兩點是為了避免行數變動時疊字、以及圖被壓成縮圖。
+`shoot.mjs` 會實際量文字的墨水範圍來驗收，疊字或壓線就 exit 1——寫死行距的回歸擋在這一關。
 
 ## 依賴
 
