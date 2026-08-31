@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Deck</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#E9EAE7; color:#14161A; overflow:hidden;
+         font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif; }
+
+  /* ── 概覽牆 ── */
+  #overview { position:fixed; inset:0; overflow-y:auto; padding:56px 48px 72px; }
+  #overview h1 { font-size:24px; font-weight:700; letter-spacing:0.01em; }
+  #overview .sub { margin-top:8px; font-size:13px; color:#6E7278; }
+  #grid { margin-top:32px; display:grid; gap:20px;
+          grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); }
+  .cell { cursor:pointer; }
+  .frame { position:relative; width:100%; aspect-ratio:16/9; overflow:hidden;
+           background:#fff; border:1px solid #D3D5D1; border-radius:6px;
+           transition:border-color .16s ease, box-shadow .16s ease; }
+  .cell:hover .frame { border-color:#14161A; box-shadow:0 6px 20px rgba(0,0,0,.10); }
+  .frame iframe { position:absolute; top:0; left:0; border:0; transform-origin:0 0; pointer-events:none; }
+  .cap { margin-top:8px; display:flex; gap:10px; align-items:baseline; }
+  .cap .n { font-size:11px; color:#8E9294; font-variant-numeric:tabular-nums; }
+  .cap .l { font-size:12.5px; color:#4F5358; line-height:1.4;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ── 演示模式 ── */
+  #stage { position:fixed; inset:0; background:#E9EAE7; display:none;
+           align-items:center; justify-content:center; }
+  #stage.on { display:flex; }
+  #stageFrame { border:0; transform-origin:center center; background:#fff;
+                box-shadow:0 10px 44px rgba(0,0,0,.16); }
+  #hud { position:fixed; left:0; right:0; bottom:0; height:44px; display:flex;
+         align-items:center; gap:18px; padding:0 20px; font-size:12px; color:#6E7278;
+         background:rgba(233,234,231,.92); opacity:0; transition:opacity .2s ease; }
+  #stage:hover #hud { opacity:1; }
+  #hud button { font:inherit; color:#14161A; background:#fff; border:1px solid #D3D5D1;
+                border-radius:4px; padding:5px 12px; cursor:pointer; }
+  #hud button:hover { border-color:#14161A; }
+  #hud .pos { margin-left:auto; font-variant-numeric:tabular-nums; }
+  #topbar { position:fixed; top:20px; right:24px; }
+  #topbar button { font:inherit; font-size:12px; color:#14161A; background:#fff;
+                   border:1px solid #D3D5D1; border-radius:4px; padding:7px 14px; cursor:pointer; }
+  #topbar button:hover { border-color:#14161A; }
+</style>
+</head>
+<body>
+
+<div id="overview">
+  <h1 id="deckTitle">Deck</h1>
+  <p class="sub">概覽 · 點擊任一頁進入演示（← → 翻頁，ESC 回概覽）</p>
+  <div id="grid"></div>
+</div>
+
+<div id="topbar"><button id="btnPresent">▶ 開始演示</button></div>
+
+<div id="stage">
+  <iframe id="stageFrame" scrolling="no"></iframe>
+  <div id="hud">
+    <button id="btnPrev">←</button>
+    <button id="btnNext">→</button>
+    <button id="btnGrid">⊞ 概覽</button>
+    <span class="pos" id="pos"></span>
+  </div>
+</div>
+
+<script>
+  window.DECK_MANIFEST = [
+    { file: "slides/01-cover.html", label: "封面" },
+  ];
+  window.DECK_WIDTH = 1280;
+  window.DECK_HEIGHT = 720;
+  window.DECK_TITLE = "Deck";
+</script>
+
+<script>
+(function () {
+  var M = window.DECK_MANIFEST, W = window.DECK_WIDTH, H = window.DECK_HEIGHT;
+  var grid = document.getElementById('grid');
+  var stage = document.getElementById('stage');
+  var sf = document.getElementById('stageFrame');
+  var pos = document.getElementById('pos');
+  var cur = 0;
+
+  document.title = window.DECK_TITLE;
+  document.getElementById('deckTitle').textContent = window.DECK_TITLE;
+
+  // ── 概覽牆：iframe 縮放當縮圖，內容永遠是最新的（不必先跑截圖）──
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      var box = e.target, i = +box.dataset.i;
+      if (box.dataset.loaded) return;
+      box.dataset.loaded = '1';
+      var f = document.createElement('iframe');
+      f.setAttribute('scrolling', 'no');
+      f.width = W; f.height = H; f.src = M[i].file;
+      f.style.width = W + 'px'; f.style.height = H + 'px';
+      box.appendChild(f);
+      var fit = function () { f.style.transform = 'scale(' + (box.clientWidth / W) + ')'; };
+      fit(); new ResizeObserver(fit).observe(box);
+      io.unobserve(box);
+    });
+  }, { rootMargin: '400px' });
+
+  M.forEach(function (s, i) {
+    var cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = '<div class="frame" data-i="' + i + '"></div>' +
+      '<div class="cap"><span class="n">' + String(i + 1).padStart(2, '0') + '</span>' +
+      '<span class="l"></span></div>';
+    cell.querySelector('.l').textContent = s.label || '';
+    cell.onclick = function () { present(i); };
+    grid.appendChild(cell);
+    io.observe(cell.querySelector('.frame'));
+  });
+
+  function fitStage() {
+    var s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.94;
+    sf.width = W; sf.height = H;
+    sf.style.width = W + 'px'; sf.style.height = H + 'px';
+    sf.style.transform = 'scale(' + s + ')';
+  }
+  window.addEventListener('resize', fitStage);
+
+  function present(i) {
+    cur = Math.max(0, Math.min(M.length - 1, i));
+    sf.src = M[cur].file;
+    pos.textContent = (cur + 1) + ' / ' + M.length + '　' + (M[cur].label || '');
+    stage.classList.add('on');
+    fitStage();
+  }
+  function overview() { stage.classList.remove('on'); sf.src = 'about:blank'; }
+
+  document.getElementById('btnPresent').onclick = function () { present(0); };
+  document.getElementById('btnPrev').onclick = function () { present(cur - 1); };
+  document.getElementById('btnNext').onclick = function () { present(cur + 1); };
+  document.getElementById('btnGrid').onclick = overview;
+
+  document.addEventListener('keydown', function (e) {
+    if (!stage.classList.contains('on')) {
+      if (e.key === 'Enter') present(0);
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); present(cur + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); present(cur - 1); }
+    else if (e.key === 'Escape') overview();
+    else if (e.key === 'Home') present(0);
+    else if (e.key === 'End') present(M.length - 1);
+  });
+})();
+</script>
+</body>
+</html>

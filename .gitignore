@@ -1,0 +1,16 @@
+# 依賴：clone 後跑 npm install 取得（playwright 連瀏覽器約 400MB，不進版控）
+node_modules/
+
+# 使用者跑管線時在 skill 目錄外產生，這裡只防手滑
+decks/
+outline.md
+*.pptx
+*.pdf
+
+# 作業系統與編輯器
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp

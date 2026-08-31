@@ -1,0 +1,12 @@
+{
+  "name": "ppt-beautify",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "把純文字簡報重新設計成可編輯 PPTX 的生成管線",
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "pptxgenjs": "^4.0.1",
+    "sharp": "^0.35.3"
+  }
+}
