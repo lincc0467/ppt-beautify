@@ -98,14 +98,31 @@ node ~/.claude/skills/ppt-beautify/scripts/init_project.mjs --project .
 
 ## 4 · 圖解（需要才做）
 
+有兩條路。**先問一句：這張圖是不是只有方塊、直線、文字？是的話走 A。**
+
+### A · `figures.mjs` — 圖在 PPTX 裡是原生物件（預設走這條）
+
+直接用 HTML 畫，不經過 PNG。`content.js` 的頁面填 `figure: '<key>'`，跑 `build.mjs` 就好，
+不需要額外的渲染步驟。
+
+匯出後每個方塊是 PowerPoint 矩形、每條線是線、每段文字是文字框，
+**在 PowerPoint 裡可以直接拖拉、改色、改字**。之所以做得到，是因為 `export_deck_pptx`
+本來就逐元素翻譯 DOM：有背景／邊框的 `<div>` → 矩形，細長的 `<div>` → 線，`<p>` → 文字框。
+
+代價是畫不了曲線與箭頭三角形（那些非得用 SVG path）。連接線改用直角折線，
+方向靠標籤與左→右的版面順序表達。
+
+### B · `diagrams.mjs` — 圖在 PPTX 裡是圖片
+
 `diagrams.mjs` 寫 SVG 原始碼 → `render_diagrams.mjs` 渲成 3x PNG → 投影片用 `<img>` 嵌入。
+頁面填 `diagram: '<key>'`。
 
 ```bash
 node ~/.claude/skills/ppt-beautify/scripts/render_diagrams.mjs --project .
 ```
 
-為什麼繞這一圈：可編輯 PPTX 禁用複雜 SVG，但簡報需要圖解。
-這樣做的結果是**頁面文字在 PPTX 裡仍可編輯，圖是圖片**；向量原始檔留在 `diagrams.mjs`，改圖改原始碼再重跑。
+**只有需要曲線、波形、任意 SVG path 時才走這條。** 結果是頁面文字仍可編輯，但圖是一張圖片，
+要改一個方框的字就得回頭改原始碼、重跑整條鏈。
 
 **圖片誠實性測試**（決定要不要放圖）：把圖拿掉之後資訊有沒有損失？
 沒有損失 → 那是裝飾 slop，不要加。概念／方法論／資料型內容通常**不需要取圖**，

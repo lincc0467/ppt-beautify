@@ -116,6 +116,20 @@ export const PAGES = [
     ],
   },
 
+  // ── figure：HTML 圖解當主角。匯出 PPTX 後圖是原生物件，不是圖片 ──
+  // 跟 diagram 的差別只有一句：diagram 走 SVG→PNG（不可編輯），figure 走 HTML（可編輯）。
+  // 只有方塊、直線、文字的圖一律用 figure；需要曲線才退回 diagram。
+  {
+    type: 'flow', ch: 'c2',
+    title: '判斷分支',
+    lead: '同一個事件有兩種成因，只有一種該觸發後續動作',
+    figure: 'demo-branch',
+    notes: [
+      { k: '圖為什麼是主角', v: '這頁的內容是一個分支結構，純文字寫不出「哪一支走哪裡」。' },
+      { k: '為什麼不用 diagram', v: '這張圖只有方塊、線與文字，用 HTML 畫就好，匯出後還能改字。' },
+    ],
+  },
+
   // ── case：左標籤右內容的區塊。第一行自動加粗 ──
   {
     type: 'case', ch: 'c3',

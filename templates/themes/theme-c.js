@@ -32,6 +32,11 @@ const leadCap = (w) => w / LEAD_FS - 4;
 const leadW = (s) => (tw(s) <= leadCap(LEAD_FULL) ? LEAD_FULL : LEAD_MEASURE);
 const leadLines = (s) => Math.ceil(tw(s) / leadCap(leadW(s)));
 
+// figures.mjs 的通用色名 → 本 theme 的調色盤。
+// acc 走章節色（色彩即編碼），在 render 裡才組得出來，這裡只放不隨章節變的部分。
+const FCBASE = { accSoft: '#9AA3AD', ink: C.ink, mut: C.body, dim: C.mut,
+  line: C.line, soft: C.soft, paper: '#FFFFFF' };
+
 export default {
   id: 'C',
   name: '系統網格',
@@ -190,13 +195,14 @@ export default {
         const bandTop = p.lead ? t.leadTop(p) + 80 : 176;
         const top = bandTop + (stats.length ? 72 : 0);
         const start = p.startNo || 1;
-        const n = p.items.length;
+        // figure / diagramOnly 主導的頁面不會有條列，items 省略是合理的寫法
+        const n = (p.items || []).length;
 
         // 有圖時：條目壓縮（≥4 條改雙欄），把剩下的高度全讓給圖
         const twoCol = !!p.diagram && !p.diagramOnly && n >= 4;
         // 行距不寫死：最後一列還要放得下 k + v，否則加了大數字帶就會撐破畫布
         const rowNeed = 46, listBottom = hasBand ? 420 : 488;
-        const gap = p.diagram ? 46
+        const gap = (p.figure || p.diagram) ? 46
           : Math.min(n >= 5 ? 52 : 64, Math.floor((listBottom - rowNeed - top) / Math.max(1, n - 1)));
         // 行距擠不下「k 疊 v」時改成左右並排——否則 v 會壓到下一列的 k
         const tight = !twoCol && !p.diagram && gap < 54;
@@ -231,7 +237,9 @@ export default {
         }).join('');
 
         const rowsH = (twoCol ? Math.ceil(shown.length / 2) : shown.length) * gap;
-        const dia = p.diagram
+        const dia = p.figure
+          ? ctx.figure(p.figure, { x: 88, y: top + rowsH + (shown.length ? 12 : 0), w: 828, C: { ...FCBASE, acc: c } })
+          : p.diagram
           ? t.fit(ctx, p.diagram, {
             top: top + rowsH + (shown.length ? 12 : 0),
             bottom: hasBand ? 420 : 488,
@@ -286,6 +294,15 @@ export default {
       }
 
       case 'flow': {
+        if (!p.steps && p.figure) {
+          const notes = (p.notes || []).map((nt, i) => `
+  <div style="position:absolute; left:${88 + i * 420}pt; top:430pt; width:400pt;" data-pptx-merge="true">
+    <p class="key" style="color:${c};">${nt.k}</p>
+    <p style="font-size:13.5pt; font-weight:300; line-height:1.5; color:${C.body}; margin-top:8pt;">${nt.v}</p>
+  </div>`).join('');
+          // 可用高度 216pt
+          return t.head(p, ctx) + t.title(p) + ctx.figure(p.figure, { x: 148, y: 214, w: 704, C: { ...FCBASE, acc: c } }) + notes;
+        }
         if (!p.steps && p.diagram) {
           const notes = (p.notes || []).map((nt, i) => `
   <div style="position:absolute; left:${88 + i * 420}pt; top:430pt; width:400pt;" data-pptx-merge="true">

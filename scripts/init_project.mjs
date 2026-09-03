@@ -7,7 +7,8 @@
  *
  * 複製過去的東西（已存在的檔案預設不覆蓋）：
  *   content.js        內容模型範本（含全部 9 種頁型的欄位示範，可直接跑）
- *   diagrams.mjs      圖解範本
+ *   figures.mjs       HTML 圖解範本（原生可編輯，優先用這個）
+ *   diagrams.mjs      SVG→PNG 圖解範本（需要曲線時才用）
  *   themes/theme-*.js 設計主題
  *   assets/           空資料夾，放 logo 等素材
  *
@@ -42,6 +43,7 @@ const copy = (from, to) => {
 };
 
 copy('content.js', 'content.js');
+copy('figures.mjs', 'figures.mjs');
 copy('diagrams.mjs', 'diagrams.mjs');
 for (const id of themeIds) copy(path.join('themes', `theme-${id}.js`), path.join('themes', `theme-${id}.js`));
 

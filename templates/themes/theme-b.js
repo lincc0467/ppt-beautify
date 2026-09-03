@@ -34,6 +34,10 @@ const leadCap = (w) => w / LEAD_FS - 4;
 const leadW = (s) => (tw(s) <= leadCap(LEAD_FULL) ? LEAD_FULL : LEAD_MEASURE);
 const leadLines = (s) => Math.ceil(tw(s) / leadCap(leadW(s)));
 
+// figures.mjs 的通用色名 → 本 theme 的調色盤。
+const FC = { acc: C.clay, accSoft: C.claySoft, ink: C.ink, mut: C.body, dim: C.faint,
+  line: C.hair, soft: C.bg, paper: C.card };
+
 export default {
   id: 'B',
   name: '暖白編輯部',
@@ -166,13 +170,14 @@ export default {
         const bandTop = p.lead ? t.leadTop(p) + 74 : 160;
         const top = bandTop + (stats.length ? 92 : 0);   // 數字帶實高約 72pt，再留 20pt 給下一列的分隔線
         const start = p.startNo || 1;
-        const n = p.items.length;
+        // figure / diagramOnly 主導的頁面不會有條列，items 省略是合理的寫法
+        const n = (p.items || []).length;
 
         // 有圖時：條目壓縮（≥4 條改雙欄），把剩下的高度全讓給圖
         const twoCol = !!p.diagram && !p.diagramOnly && n >= 4;
         // 行距不寫死：最後一列還要放得下 k + v
         const rowNeed = 48, listBottom = hasBand ? 396 : 484;
-        const gap = p.diagram ? 46
+        const gap = (p.figure || p.diagram) ? 46
           : Math.min(n >= 5 ? 56 : 68, Math.floor((listBottom - rowNeed - top) / Math.max(1, n - 1)));
         // 行距擠不下「k 疊 v」時改成左右並排——否則 v 會壓到下一列的 k。
         // 用內容實際折行後的高度判斷，不用 gap 的經驗閾值：k 或 v 一旦折行，
@@ -222,7 +227,9 @@ export default {
         }).join('');
 
         const rowsH = (twoCol ? Math.ceil(shown.length / 2) : shown.length) * gap;
-        const dia = p.diagram
+        const dia = p.figure
+          ? ctx.figure(p.figure, { x: 298, y: top + rowsH + (shown.length ? 12 : 0), w: 598, C: FC })
+          : p.diagram
           ? t.fit(ctx, p.diagram, {
             top: top + rowsH + (shown.length ? 12 : 0),
             bottom: hasBand ? 396 : 482,
@@ -276,6 +283,15 @@ export default {
 
       case 'flow': {
         // B 版的 flow 用卡片列；沒有 steps 而有 diagram 時退回貼圖
+        if (!p.steps && p.figure) {
+          const notes = (p.notes || []).map((nt, i) => `
+  <div style="position:absolute; left:${298 + i * 306}pt; top:400pt; width:290pt;" data-pptx-merge="true">
+    <p class="kick" style="color:${C.clay};">${nt.k}</p>
+    <p style="font-size:13pt; font-weight:300; line-height:1.55; color:${C.body}; margin-top:8pt;">${nt.v}</p>
+  </div>`).join('');
+          // 可用高度 210pt
+          return t.head(p, ctx) + t.title(p) + ctx.figure(p.figure, { x: 298, y: 190, w: 598, C: FC }) + notes;
+        }
         if (!p.steps && p.diagram) {
           const notes = (p.notes || []).map((nt, i) => `
   <div style="position:absolute; left:${298 + i * 306}pt; top:400pt; width:290pt;" data-pptx-merge="true">

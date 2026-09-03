@@ -36,7 +36,8 @@
 | `lead` | 標題下的導言。**用來講「為什麼這頁重要」，不是複述標題** |
 | `short` | 概覽牆的短標籤；不填就用 `title` |
 | `stepNo` | 頁首顯示 `STEP n` |
-| `diagram` | `diagrams.mjs` 的 key，以 `<img>` 嵌入 |
+| `figure` | `figures.mjs` 的 key，直接展開成 HTML。**匯出 PPTX 後是原生可編輯物件**，優先用這個 |
+| `diagram` | `diagrams.mjs` 的 key，以 `<img>` 嵌入。圖在 PPTX 裡不可編輯，需要曲線時才用 |
 | `scene` | 場景／單元標記，用強調色顯示在頁首章節之後。<br>同一個場景橫跨多頁時掛上它，聽眾才數得出「現在是第幾個」 |
 | `speaker` | 講者備忘稿。投影片上不出現，匯出 PPTX 時寫進備忘稿欄。用 `\n` 分行。<br>**投影片放不下但講的時候要講的細節，放這裡**，不要硬塞進版面 |
 
@@ -53,7 +54,7 @@
 - `wideKey` — 加寬關鍵詞欄（預設 286pt）
 - `footer` + `kicker` — 頁尾強調帶
 - `logos: [{name, src?, text?}]` — 工具／來源卡；`src` 是 `assets/` 下的檔名
-- `diagram` — 圖放在條列下方；條目 ≥4 時自動改雙欄把高度讓給圖
+- `figure` / `diagram` — 圖放在條列下方；條目 ≥4 時自動改雙欄把高度讓給圖（`figure` 優先）
 - `diagramOnly` — 圖已完整承載這些條目，不再重列（避免圖文重複）
 
 ### `split`
@@ -64,7 +65,10 @@
 
 ### `flow`
 - `steps: [{label, detail}]` — 流程卡
-- 或 `diagram` — A 版以圖為主角（B/C 版沒 `steps` 時也退回貼圖）
+- 或 `figure` / `diagram` — 以圖為主角（B/C 版沒 `steps` 時也一樣）
+
+  **`figure` 的可用高度是固定的**，超過就會壓到頁尾的 `notes`，而溢出檢查抓不到：
+  A 版 186pt ／ B 版 210pt ／ C 版 216pt。設計時抓 ≤ 180pt 最安全。
 - `notes: [{k, v}]` — 下方兩則註解
 
 ### `case`

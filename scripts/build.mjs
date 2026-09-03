@@ -8,7 +8,8 @@
  * 專案目錄必須有：
  *   content.js        export { DECK, CHAPTERS, PAGES }
  *   themes/theme-*.js 各 export default { id, name, desc, fonts, css, render(p, ctx) }
- *   diagrams.mjs      （選用）export { DIAGRAMS }：name → SVG 原始碼
+ *   figures.mjs       （選用）export { FIGURES }：name → 回傳 HTML 的函式（原生可編輯圖解）
+ *   diagrams.mjs      （選用）export { DIAGRAMS }：name → SVG 原始碼（轉 PNG，圖不可編輯）
  *   assets/           （選用）圖片素材，會複製進每套 deck
  *
  * 產出：
@@ -42,6 +43,12 @@ if (!Array.isArray(PAGES) || !PAGES.length) {
 let DIAGRAMS = {};
 if (fs.existsSync(path.join(PROJECT, 'diagrams.mjs'))) {
   ({ DIAGRAMS = {} } = await load('diagrams.mjs'));
+}
+
+// HTML 圖解：不經過 PNG，匯出後是原生可編輯物件
+let FIGURES = {};
+if (fs.existsSync(path.join(PROJECT, 'figures.mjs'))) {
+  ({ FIGURES = {} } = await load('figures.mjs'));
 }
 
 const themesDir = path.join(PROJECT, 'themes');
@@ -139,6 +146,13 @@ const ctxFor = (i) => ({
     return [im.w, im.h];
   },
   dsrc: (name) => `../${IMAGES[name].src}`,
+  // HTML 圖解：theme 給位置與調色盤，figure 回傳絕對定位的 HTML 片段。
+  // 走這條的圖在 PPTX 裡是原生矩形與文字框，不是圖片。
+  figure: (name, opts) => {
+    const fn = FIGURES[name];
+    if (!fn) throw new Error(`未知圖解「${name}」——需為 figures.mjs 的 key`);
+    return fn(opts);
+  },
 });
 
 const report = [];

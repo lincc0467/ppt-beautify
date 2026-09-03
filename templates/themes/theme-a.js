@@ -35,6 +35,11 @@ const leadCap = (w) => w / LEAD_FS - 4;
 const leadW = (s) => (tw(s) <= leadCap(LEAD_FULL) ? LEAD_FULL : LEAD_MEASURE);
 const leadLines = (s) => Math.ceil(tw(s) / leadCap(leadW(s)));
 
+// figures.mjs 的通用色名 → 本 theme 的調色盤。
+// 圖解不寫死顏色，換 theme 就跟著換。
+const FC = { acc: C.acc, accSoft: C.off, ink: C.ink, mut: C.mut, dim: C.dim,
+  line: C.line, soft: '#E9E7E3', paper: '#FFFFFF' };
+
 export default {
   id: 'A',
   name: '敘事軸',
@@ -213,13 +218,15 @@ export default {
         const bandTop = p.lead ? t.leadTop(p) + 64 : 182;
         const statH = stats.length ? 100 : 0;   // 數字帶實高約 77pt，其餘留給與條列之間的呼吸
         const areaTop = bandTop + statH;
-        const n = p.items.length;
+        // figure / diagramOnly 主導的頁面不會有條列，items 省略是合理的寫法
+        const n = (p.items || []).length;
         // 有圖時：條目排雙欄、行高壓縮，把高度讓給圖（圖是主角，不是插圖）
+        const hasFig = !!(p.figure || p.diagram);
         const twoCol = !!p.diagram && !p.diagramOnly && n >= 4;
         const rowsCount = twoCol ? Math.ceil(n / 2) : n;
-        const rowH = twoCol ? 54 : (p.diagram ? 34 : ((hasBand ? 414 : 488) - areaTop) / n);
+        const rowH = twoCol ? 54 : (hasFig ? 34 : ((hasBand ? 414 : 488) - areaTop) / Math.max(1, n));
         const areaBot = p.diagramOnly ? areaTop - 14
-          : (p.diagram ? areaTop + rowsCount * rowH : (hasBand ? 414 : 488));
+          : (hasFig ? areaTop + rowsCount * rowH : (hasBand ? 414 : 488));
         // diagramOnly 若同時有頁尾帶，圖高要讓出帶子的位置，否則會蓋上去
         // 圖高一律由剩餘空間反推，不寫死常數——否則加了數字帶（statH）之後圖會壓到頁尾帶
         const DIA_H = (hasBand ? 414 : 486) - (areaBot + 16);
@@ -229,11 +236,11 @@ export default {
         const kW = p.wideKey || 286;
         const vX = kX + kW + 20;
         const vW = 896 - vX;
-        const kSize = p.diagram ? 16 : 18;
-        const vSize = p.diagram ? 14 : 15;
+        const kSize = hasFig ? 16 : 18;
+        const vSize = hasFig ? 14 : 15;
 
         // diagramOnly：圖已完整承載這些條目，再列一次就是重複
-        const rows = (p.diagramOnly ? [] : p.items).map((it, i) => {
+        const rows = (p.diagramOnly ? [] : (p.items || [])).map((it, i) => {
           if (twoCol) {
             const col = i % 2, r = Math.floor(i / 2);
             const y = Math.round(areaTop + r * rowH);
@@ -281,9 +288,11 @@ export default {
   </div>` : '';
 
         const diaTop = areaBot + 16;
-        const dia = p.diagram ? `
+        // figure（HTML，原生可編輯）優先於 diagram（PNG）
+        const dia = hasFig ? `
   <div style="position:absolute; left:64pt; top:${diaTop - 12}pt; width:832pt; height:1pt; background:${C.line};"></div>` +
-          t.fit(ctx, p.diagram, { top: diaTop, bottom: diaTop + DIA_H, maxW: 812 }) : '';
+          (p.figure ? ctx.figure(p.figure, { x: 64, y: diaTop + 4, w: 812, C: FC })
+            : t.fit(ctx, p.diagram, { top: diaTop, bottom: diaTop + DIA_H, maxW: 812 })) : '';
 
         return t.head(p, ctx) + t.title(p) + statBand + rows + dia + logos + footer + t.axis(ctx);
       }
@@ -310,7 +319,9 @@ export default {
     <p style="font-size:15pt; font-weight:700; letter-spacing:0.03em; color:${C.acc};">${nt.k}</p>
     <p style="font-size:15pt; font-weight:300; line-height:1.5; color:${C.mut}; margin-top:6pt;">${nt.v}</p>
   </div>`).join('');
-        const body = p.diagram
+        const body = p.figure
+          ? ctx.figure(p.figure, { x: 120, y: 222, w: 720, C: FC })   // 可用高度 186pt
+          : p.diagram
           ? t.img(ctx, p.diagram, 120, 208, 720)
           : (p.steps || []).map((s, i, arr) => {
             const w = Math.floor(832 / arr.length);
