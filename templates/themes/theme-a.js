@@ -20,6 +20,21 @@ const mono = (s) => (/[一-鿿　-〿＀-￯]/.test(String(s ?? '')) ? '' : 'mon
 const tw = (s) => [...String(s ?? '')].reduce(
   (a, c) => a + (/[⺀-鿿　-〿＀-｠￠-￦]/.test(c) ? 1 : 0.5), 0);
 
+// ── lead 的行長 ───────────────────────────────────────────────
+// 一行放得下就用滿版寬，放不下才退回舒適行長。
+//
+// 寫死一個窄行長的後果：長度落在兩者之間的 lead 會折成兩行、第二行只剩兩三個字，
+// 而右邊還空著上百 pt。孤行比長行難看，而且這個區間很常中——
+// 一份 20 頁的技術簡報實測有 11 頁的 lead 落在這裡。
+//
+// 寬度與行數必須同一個來源：table 的表頭起點是按 lead 佔幾行往下推的，
+// 兩邊各算各的，表格就會依「假的行數」白白下移一階。
+const LEAD_FS = 17, LEAD_FULL = 832, LEAD_MEASURE = 640;
+// 一行容得下幾個全形；減 4 是餘裕——換行點是詞不是字，實測會比理論值提前折行
+const leadCap = (w) => w / LEAD_FS - 4;
+const leadW = (s) => (tw(s) <= leadCap(LEAD_FULL) ? LEAD_FULL : LEAD_MEASURE);
+const leadLines = (s) => Math.ceil(tw(s) / leadCap(leadW(s)));
+
 export default {
   id: 'A',
   name: '敘事軸',
@@ -120,7 +135,7 @@ export default {
   title(p) {
     return `
   <div style="position:absolute; left:64pt; top:94pt; width:760pt;"><h2 class="h2">${br(p.title)}</h2></div>
-  ${p.lead ? `<div style="position:absolute; left:64pt; top:${this.leadTop(p)}pt; width:640pt;"><p class="lead">${p.lead}</p></div>` : ''}`;
+  ${p.lead ? `<div style="position:absolute; left:64pt; top:${this.leadTop(p)}pt; width:${leadW(p.lead)}pt;"><p class="lead">${p.lead}</p></div>` : ''}`;
   },
 
   // turn 頁專用：標題不帶大 lead（lead 另放在兩欄之上，避免壓到分隔線）
@@ -417,9 +432,10 @@ export default {
         const xs = []; let acc = X0;
         for (const w of ws) { xs.push(acc); acc += w; }
         // 行距由可用高度反推；13 列時約 10.5pt，3 列時封頂在 13pt，不寫死
-        // 起點要看 lead 實際佔幾行，不能只看標題寬度——lead 換行時表頭會被壓到
-        // （lead 欄寬 640pt、17pt，理論一行 37 字；取 34 留餘裕——換行點是詞不是字，實測會提前折行）
-        const top = p.lead ? t.leadTop(p) + 26 * Math.ceil(tw(p.lead) / 34) + 26 : 148;
+        // 起點要看 lead 實際佔幾行，不能只看標題寬度——lead 換行時表頭會被壓到。
+        // 行數一律問 leadLines()，它跟 leadW() 是同一個來源；這裡自己再算一次
+        // 就會跟實際欄寬脫鉤，表格依「假的行數」下移。
+        const top = p.lead ? t.leadTop(p) + 26 * leadLines(p.lead) + 26 : 148;
         const bot = p.note ? 458 : 492;
         const headH = 22;
         // 上限 60 而非 46：三、四列的表格若卡在 46，版心會空掉一大片；

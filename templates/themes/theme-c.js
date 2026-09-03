@@ -17,6 +17,21 @@ const br = (s) => String(s ?? '').replace(/\n/g, '<br>');
 const tw = (s) => [...String(s ?? '')].reduce(
   (a, c) => a + (/[⺀-鿿　-〿＀-｠￠-￦]/.test(c) ? 1 : 0.5), 0);
 
+// ── lead 的行長 ───────────────────────────────────────────────
+// 一行放得下就用滿版寬，放不下才退回舒適行長。
+//
+// 寫死一個窄行長的後果：長度落在兩者之間的 lead 會折成兩行、第二行只剩兩三個字，
+// 而右邊還空著上百 pt。孤行比長行難看，而且這個區間很常中——
+// 一份 20 頁的技術簡報實測有 11 頁的 lead 落在這裡。
+//
+// 寬度與行數必須同一個來源：table 的表頭起點是按 lead 佔幾行往下推的，
+// 兩邊各算各的，表格就會依「假的行數」白白下移一階。
+const LEAD_FS = 16.5, LEAD_FULL = 828, LEAD_MEASURE = 640;
+// 一行容得下幾個全形；減 4 是餘裕——換行點是詞不是字，實測會比理論值提前折行
+const leadCap = (w) => w / LEAD_FS - 4;
+const leadW = (s) => (tw(s) <= leadCap(LEAD_FULL) ? LEAD_FULL : LEAD_MEASURE);
+const leadLines = (s) => Math.ceil(tw(s) / leadCap(leadW(s)));
+
 export default {
   id: 'C',
   name: '系統網格',
@@ -72,7 +87,7 @@ export default {
   title(p) {
     return `
   <div style="position:absolute; left:88pt; top:104pt; width:760pt;"><h2 class="h2">${br(p.title)}</h2></div>
-  ${p.lead ? `<div style="position:absolute; left:88pt; top:${this.leadTop(p)}pt; width:640pt;"><p class="lead">${p.lead}</p></div>` : ''}`;
+  ${p.lead ? `<div style="position:absolute; left:88pt; top:${this.leadTop(p)}pt; width:${leadW(p.lead)}pt;"><p class="lead">${p.lead}</p></div>` : ''}`;
   },
 
   // frame：不透明底的圖加一圈細框收邊。邊框畫在墊底的 div 上（Path A 規則 3）
